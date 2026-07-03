@@ -39,6 +39,7 @@ void setup() {
     // SensorCalibration::runStaticCalibration(&imu);  // For Gyro offset and Noise variances (Keep still)
 
     estimator.selectFilter(AttitudeFilterSel::ESKF);
+    estimator.setUseMagnetometer(true);
 }
 
 void loop() {

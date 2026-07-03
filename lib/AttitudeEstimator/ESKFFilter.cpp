@@ -43,7 +43,7 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
     const float GyroscopeNoise = 7.86768851e-07f; // Measured
     const float GyroscopeDriftNoise = 1e-7f;
     const float LinearAccelerationNoise = 1.0e-5f; // Slightly higher than AccelNoise
-    const float MagnetometerNoise = 1.35611117e+00f; // Measured
+    const float MagnetometerNoise = 0.01f; // Scaled variance for normalized vector
     const float LinearAccelerationDecayFactor = 0.5f;
     const float OrientationCorrectionGain = 0.1f;
     const float MaxOrientationCorrection = 0.03f;
@@ -73,14 +73,17 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
 
     // Predict measurement directions
     Vector3f z_a_hat_minus = rotMatToGravity(R_q_hat_minus);
-    Vector3f m_s_hat_minus = rotMatToMagnetic(R_q_hat_minus);
+
+    Vector3f m_m_norm = m_m.normalized();
+    // Dynamic magnetic reference to decouple roll/pitch
+    Vector3f m_world = R_q_hat_minus * m_m_norm;
+    Vector3f m_ref_world(sqrt(m_world(0)*m_world(0) + m_world(1)*m_world(1)), 0.0f, m_world(2));
+    Vector3f m_s_hat_minus = R_q_hat_minus.transpose() * m_ref_world;
 
     // Residuals
     // Python gravity sign for NED reference frame is 1 (Positive gravity down)
     Vector3f z_a = a_m + a_lin_hat_minus;
     Vector3f r_a = z_a - z_a_hat_minus;
-
-    Vector3f m_m_norm = m_m.normalized();
     Vector3f r_m = m_m_norm - m_s_hat_minus;
 
     // 3. Assemble Jacobian H_k (6x9)
@@ -90,6 +93,7 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
     Matrix3f H_a_bias = dt * buildHPart(z_a_hat_minus);
     H_k.block<3, 3>(0, 0) = H_a_theta;
     H_k.block<3, 3>(0, 3) = H_a_bias;
+    H_k.block<3, 3>(0, 6) = -Matrix3f::Identity();
     
     Matrix3f H_m_theta = -buildHPart(m_s_hat_minus);
     Matrix3f H_m_bias = dt * buildHPart(m_s_hat_minus);
@@ -116,8 +120,8 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
     Vector3f delta_b_g_hat = limitVectorNorm(delta_x_hat.segment<3>(3), MaxGyroOffsetCorrection);
     Vector3f delta_a_lin_hat = delta_x_hat.segment<3>(6);
 
-    // Apply orientation correction
-    Quaternionf delta_q_corr = fromRotationVector(-delta_theta_hat);
+    // Apply orientation correction (add the error estimate)
+    Quaternionf delta_q_corr = fromRotationVector(delta_theta_hat);
     _q_nom = q_hat_minus * delta_q_corr;
     _q_nom.normalize();
 
@@ -139,9 +143,9 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
     _q_nom = _q_nom * delta_q_meas;
     _q_nom.normalize();
 
-    // Correct remaining nominal states
-    _b_g = _b_g - delta_b_g_hat;
-    _a_lin = a_lin_hat_minus - delta_a_lin_hat;
+    // Correct remaining nominal states (add the error estimates)
+    _b_g = _b_g + delta_b_g_hat;
+    _a_lin = a_lin_hat_minus + delta_a_lin_hat;
 
     // 6. Covariance propagation
     Matrix<float, 9, 9> P_plus = (Matrix<float, 9, 9>::Identity() - K_k * H_k) * _P_cov;
@@ -173,14 +177,18 @@ Eigen::Matrix3f ESKFFilter::buildHPart(const Eigen::Vector3f& v) {
 }
 
 Eigen::Vector3f ESKFFilter::rotMatToGravity(const Eigen::Matrix3f& R) {
-    // In NED reference frame, gravity points down (along Z axis)
-    const float gravity = 9.80665f;
-    return gravity * R.col(2);
+    // In NED reference frame, gravity points down (along Z axis) in world frame.
+    // To get expected measurement in body frame, we need R^T * [0, 0, g]^T,
+    // which corresponds to the 3rd row of R (transposed to a column vector).
+    const float gravity = 1.0f; // Accelerometer input is in 'g' units, not m/s^2
+    return gravity * R.row(2).transpose();
 }
 
 Eigen::Vector3f ESKFFilter::rotMatToMagnetic(const Eigen::Matrix3f& R) {
-    // Magnetic reference vector points North (along X axis)
-    Eigen::Vector3f m = R.col(0);
+    // Magnetic reference vector points North (along X axis) in world frame.
+    // To get expected measurement in body frame, we need R^T * [1, 0, 0]^T,
+    // which corresponds to the 1st row of R (transposed to a column vector).
+    Eigen::Vector3f m = R.row(0).transpose();
     float norm = m.norm();
     if (norm == 0.0f) return m;
     return m / norm;
@@ -196,9 +204,9 @@ Eigen::Quaternionf ESKFFilter::ecompass(const Eigen::Vector3f& a, const Eigen::V
     Eigen::Vector3f R1 = R2.cross(a_norm).normalized();
     
     Eigen::Matrix3f R;
-    R.col(0) = R1;
-    R.col(1) = R2;
-    R.col(2) = a_norm;
+    R.row(0) = R1;
+    R.row(1) = R2;
+    R.row(2) = a_norm;
     
     return Eigen::Quaternionf(R);
 }
