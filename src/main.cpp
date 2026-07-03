@@ -2,8 +2,6 @@
 #include <Wire.h>
 #include "BNO085_HAL.h"
 #include "AttitudeEstimator.h"
-#include "../lib/SensorCalibration/SensorCalibration.h"
-#include <vector>
 
 // --- Pin Definitions ---
 #define I2C_SDA 21

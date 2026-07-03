@@ -172,7 +172,7 @@ void SensorCalibration::runTumbleCalibration(IMUSensor* imu) {
                     delay(5);
                 }
                 poseCount++;
-                Serial.printf("Pose %d Captured. Total points: %d. Send 's' for next, or 'd' to finish.\n", poseCount, accelData.size());
+                Serial.printf("Pose %d Captured. Total points: %zu. Send 's' for next, or 'd' to finish.\n", poseCount, accelData.size());
             } else if (c == 'd') {
                 if (poseCount < 6) {
                     Serial.println("Error: Need at least 6 poses for a 3D ellipsoid fit!");
