@@ -20,9 +20,13 @@ void AttitudeEstimator::update(float dt, bool ignoreAccel) {
     if (!_imu) return; 
     _deltaT = dt;
 
-    float ax = _imu->getAccX();
-    float ay = _imu->getAccY();
-    float az = _imu->getAccZ();
+    float ax_raw = _imu->getAccX();
+    float ay_raw = _imu->getAccY();
+    float az_raw = _imu->getAccZ();
+    
+    float ax = ACCEL_GAIN[0] * (ax_raw - ACCEL_OFFSET[0]) + ACCEL_GAIN[1] * (ay_raw - ACCEL_OFFSET[1]) + ACCEL_GAIN[2] * (az_raw - ACCEL_OFFSET[2]);
+    float ay = ACCEL_GAIN[3] * (ax_raw - ACCEL_OFFSET[0]) + ACCEL_GAIN[4] * (ay_raw - ACCEL_OFFSET[1]) + ACCEL_GAIN[5] * (az_raw - ACCEL_OFFSET[2]);
+    float az = ACCEL_GAIN[6] * (ax_raw - ACCEL_OFFSET[0]) + ACCEL_GAIN[7] * (ay_raw - ACCEL_OFFSET[1]) + ACCEL_GAIN[8] * (az_raw - ACCEL_OFFSET[2]);
     
     _transformedAccX = ax;
     _transformedAccY = ay;
@@ -34,9 +38,13 @@ void AttitudeEstimator::update(float dt, bool ignoreAccel) {
         ignoreAccel = true;
     }
 
-    float gx = _imu->getGyroX_rads();
-    float gy = _imu->getGyroY_rads();
-    float gz = _imu->getGyroZ_rads();
+    float gx_raw = _imu->getGyroX_rads();
+    float gy_raw = _imu->getGyroY_rads();
+    float gz_raw = _imu->getGyroZ_rads();
+    
+    float gx = GYRO_GAIN[0] * (gx_raw - GYRO_OFFSET[0]) + GYRO_GAIN[1] * (gy_raw - GYRO_OFFSET[1]) + GYRO_GAIN[2] * (gz_raw - GYRO_OFFSET[2]);
+    float gy = GYRO_GAIN[3] * (gx_raw - GYRO_OFFSET[0]) + GYRO_GAIN[4] * (gy_raw - GYRO_OFFSET[1]) + GYRO_GAIN[5] * (gz_raw - GYRO_OFFSET[2]);
+    float gz = GYRO_GAIN[6] * (gx_raw - GYRO_OFFSET[0]) + GYRO_GAIN[7] * (gy_raw - GYRO_OFFSET[1]) + GYRO_GAIN[8] * (gz_raw - GYRO_OFFSET[2]);
 
     // Apply Gyro Cutoff 
     float cutoff_rads = ATTITUDE_GYRO_CUTOFF_DPS * DEG_TO_RAD;
@@ -54,9 +62,13 @@ void AttitudeEstimator::update(float dt, bool ignoreAccel) {
     float mz = 0.0f;
 
     if (_useMagnetometer) {
-        mx = _imu->getMagX(); 
-        my = _imu->getMagY(); 
-        mz = _imu->getMagZ(); 
+        float mx_raw = _imu->getMagX(); 
+        float my_raw = _imu->getMagY(); 
+        float mz_raw = _imu->getMagZ(); 
+        
+        mx = MAG_GAIN[0] * (mx_raw - MAG_OFFSET[0]) + MAG_GAIN[1] * (my_raw - MAG_OFFSET[1]) + MAG_GAIN[2] * (mz_raw - MAG_OFFSET[2]);
+        my = MAG_GAIN[3] * (mx_raw - MAG_OFFSET[0]) + MAG_GAIN[4] * (my_raw - MAG_OFFSET[1]) + MAG_GAIN[5] * (mz_raw - MAG_OFFSET[2]);
+        mz = MAG_GAIN[6] * (mx_raw - MAG_OFFSET[0]) + MAG_GAIN[7] * (my_raw - MAG_OFFSET[1]) + MAG_GAIN[8] * (mz_raw - MAG_OFFSET[2]);
     }
 
     if (_filterSel == AttitudeFilterSel::NAV_MEKF) {

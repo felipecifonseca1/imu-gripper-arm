@@ -2,6 +2,8 @@
 #include <Wire.h>
 #include "BNO085_HAL.h"
 #include "AttitudeEstimator.h"
+#include "../lib/SensorCalibration/SensorCalibration.h"
+#include <vector>
 
 // --- Pin Definitions ---
 #define I2C_SDA 21
@@ -17,6 +19,8 @@ unsigned long lastPrintTime = 0;
 unsigned long sampleCount = 0;
 unsigned long lastSampleTime = 0;
 
+
+
 void setup() {
     Serial.begin(115200);
     while (!Serial) delay(10);
@@ -24,13 +28,18 @@ void setup() {
     Serial.println("\n--- BNO085 Hardware Verification Test ---");
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setClock(400000); 
-
+    
     if (!imu.init(true, false)) {
         Serial.println("ERROR: Failed to initialize BNO085!");
         while (1) { delay(10); }
     }
     Serial.println("BNO085 Initialized Successfully!");
     
+    // Uncomment ONE of these to run onboard calibration and halt
+    // SensorCalibration::runDynamicCalibration(&imu); // Fast Accel/Mag scale and offsets (Rotate sensor)
+    // SensorCalibration::runTumbleCalibration(&imu);  // High-Precision Accel/Mag (Static poses via Serial 's')
+    // SensorCalibration::runStaticCalibration(&imu);  // For Gyro offset and Noise variances (Keep still)
+
     estimator.selectFilter(AttitudeFilterSel::MEKF);
 }
 
