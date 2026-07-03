@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include "BNO085_HAL.h"
 #include "AttitudeEstimator.h"
+#include "SensorCalibration.h"
 
 // --- Pin Definitions ---
 #define I2C_SDA 21
@@ -33,12 +34,11 @@ void setup() {
     }
     Serial.println("BNO085 Initialized Successfully!");
     
-    // Uncomment ONE of these to run onboard calibration and halt
     // SensorCalibration::runDynamicCalibration(&imu); // Fast Accel/Mag scale and offsets (Rotate sensor)
     // SensorCalibration::runTumbleCalibration(&imu);  // High-Precision Accel/Mag (Static poses via Serial 's')
     // SensorCalibration::runStaticCalibration(&imu);  // For Gyro offset and Noise variances (Keep still)
 
-    estimator.selectFilter(AttitudeFilterSel::MEKF);
+    estimator.selectFilter(AttitudeFilterSel::ESKF);
 }
 
 void loop() {
@@ -72,8 +72,8 @@ void loop() {
         // Print debug data every 50ms
         if (millis() - lastPrintTime >= 50) {
             lastPrintTime = millis();
-            // Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f\n", roll, pitch, yaw);
-            Serial.printf("%f,%f,%f,%f,%f,%f,%f,%f,%f\n", ax, ay, az, gx, gy, gz, mx, my, mz);
+            Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f\n", roll, pitch, yaw);
+            // Serial.printf("%f,%f,%f,%f,%f,%f,%f,%f,%f\n", ax, ay, az, gx, gy, gz, mx, my, mz);
 
         }
     }

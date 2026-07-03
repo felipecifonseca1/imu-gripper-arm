@@ -105,7 +105,7 @@ bool SensorCalibration::calibrateNoise(const std::vector<Vector3f>& data, float&
 
 void SensorCalibration::runDynamicCalibration(IMUSensor* imu) {
     Serial.println("\n--- IMU DYNAMIC CALIBRATION ---");
-    Serial.println("Rotate the sensor in all directions. Collecting 1000 samples...");
+    Serial.println("Rotate sensor in all directions. Collecting 1000 averaged samples (takes ~20s)...");
     
     std::vector<Eigen::Vector3f> accelData;
     std::vector<Eigen::Vector3f> magData;
@@ -114,12 +114,30 @@ void SensorCalibration::runDynamicCalibration(IMUSensor* imu) {
     magData.reserve(1000);
     
     int samples = 0;
+    int accumCount = 0;
+    Eigen::Vector3f accelAccum = Eigen::Vector3f::Zero();
+    Eigen::Vector3f magAccum = Eigen::Vector3f::Zero();
+    unsigned long lastSampleTime = millis();
+    
     while (samples < 1000) {
         if (imu->update()) {
-            accelData.push_back(Eigen::Vector3f(imu->getAccX(), imu->getAccY(), imu->getAccZ()));
-            magData.push_back(Eigen::Vector3f(imu->getMagX(), imu->getMagY(), imu->getMagZ()));
-            samples++;
-            if (samples % 100 == 0) Serial.printf("Progress: %d/1000\n", samples);
+            accelAccum += Eigen::Vector3f(imu->getAccX(), imu->getAccY(), imu->getAccZ());
+            magAccum += Eigen::Vector3f(imu->getMagX(), imu->getMagY(), imu->getMagZ());
+            accumCount++;
+        }
+        
+        // Save average every 20ms (50Hz) -> 1000 samples = 20 seconds
+        if (millis() - lastSampleTime >= 20) {
+            if (accumCount > 0) {
+                accelData.push_back(accelAccum / (float)accumCount);
+                magData.push_back(magAccum / (float)accumCount);
+                samples++;
+                if (samples % 100 == 0) Serial.printf("Progress: %d/1000\n", samples);
+            }
+            accelAccum.setZero();
+            magAccum.setZero();
+            accumCount = 0;
+            lastSampleTime = millis();
         }
         delay(1);
     }
