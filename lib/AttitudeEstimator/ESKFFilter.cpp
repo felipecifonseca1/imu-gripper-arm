@@ -39,12 +39,11 @@ void ESKFFilter::setQuaternion(float w, float x, float y, float z) {
 
 void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, bool ignoreAccel) {
 
-    const float G_GRAVITY = 9.80665f;
-    const float AccelerometerNoise = 2e-6f * (G_GRAVITY * G_GRAVITY);
-    const float GyroscopeNoise = 0.01f;
+    const float AccelerometerNoise = 2.57373933e-06f; // Measured
+    const float GyroscopeNoise = 2.50414263e-07f; // Measured
     const float GyroscopeDriftNoise = 1e-7f;
-    const float LinearAccelerationNoise = 1e-4f * (G_GRAVITY * G_GRAVITY);
-    const float MagnetometerNoise = 1e-4f;
+    const float LinearAccelerationNoise = 1.0e-5f; // Slightly higher than AccelNoise
+    const float MagnetometerNoise = 3.91776141e-01f; // Measured
     const float LinearAccelerationDecayFactor = 0.5f;
     const float OrientationCorrectionGain = 0.1f;
     const float MaxOrientationCorrection = 0.03f;

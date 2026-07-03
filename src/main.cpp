@@ -65,7 +65,9 @@ void loop() {
         // Print debug data every 50ms
         if (millis() - lastPrintTime >= 50) {
             lastPrintTime = millis();
-            Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f\n", roll, pitch, yaw);
+            // Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f\n", roll, pitch, yaw);
+            Serial.printf("%f,%f,%f,%f,%f,%f,%f,%f,%f\n", ax, ay, az, gx, gy, gz, mx, my, mz);
+
         }
     }
 }
