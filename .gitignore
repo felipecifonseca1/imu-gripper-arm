@@ -1,0 +1,6 @@
+.pio/
+.vscode/
+.clang_node_dict*
+*.elf
+*.bin
+*.hex
