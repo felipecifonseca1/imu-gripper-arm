@@ -18,8 +18,7 @@ MEKF::MEKF() {
 
     resetState(); // Default to identity (upright)
     
-    // Default Process Noise (Gyro noise and bias drift)
-    // 0.001 is much more stable for flight than Identity[1.0]
+    // Default Process Noise 
     _proc = Matrix<float, 6, 6>::Identity() * 0.001f;
     
     // Default Error Covariance (Initial uncertainty)

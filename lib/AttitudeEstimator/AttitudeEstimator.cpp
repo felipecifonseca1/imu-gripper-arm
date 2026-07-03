@@ -1,7 +1,6 @@
 #include "AttitudeEstimator.h"
-#include "Config_voo.h"
 #include <math.h>
-#include "MPU9250_HAL.h"
+#include "../../include/config.h"
 
 /**
  * @brief Initialize the estimator with an IMU pointer.
@@ -55,15 +54,9 @@ void AttitudeEstimator::update(float dt, bool ignoreAccel) {
     float mz = 0.0f;
 
     if (_useMagnetometer) {
-        // The MPU9250's internal AK8963 Magnetometer is physically rotated relative to the MPU9250 Accel/Gyro:
-        // AK8963_X aligns with MPU_Y, AK8963_Y aligns with MPU_X, AK8963_Z aligns with MPU_-Z.
-        float rawMagX = _imu->getMagX(); 
-        float rawMagY = _imu->getMagY(); 
-        float rawMagZ = _imu->getMagZ(); 
-
-        mx = rawMagY;   // Align Mag Y to Accel X (Right)
-        my = rawMagX;   // Align Mag X to Accel Y (Forward)
-        mz = rawMagZ;   // Already flipped in HAL to be Up-positive
+        mx = _imu->getMagX(); 
+        my = _imu->getMagY(); 
+        mz = _imu->getMagZ(); 
     }
 
     if (_filterSel == AttitudeFilterSel::NAV_MEKF) {
@@ -271,7 +264,7 @@ void AttitudeEstimator::setMagneticReference(float mx, float my, float mz) {
     }
 }
 
-void AttitudeEstimator::setMagneticLocation(uint8_t location) {
+void AttitudeEstimator::setMagneticLocation(MagLocation location) {
     switch(location) {
         case MagLocation::SAO_PAULO:
             setMagneticReference(0.724f, -0.289f, 0.626f); // Declination: -21.76° | Inclination: 38.77°

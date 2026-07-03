@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include "BNO085_HAL.h"
+#include "AttitudeEstimator.h"
 
 // --- Pin Definitions ---
 #define I2C_SDA 21
@@ -9,6 +10,7 @@
 
 // --- Hardware Instances ---
 BNO085_HAL imu;
+AttitudeEstimator estimator(&imu);
 
 // --- Timing Variables ---
 unsigned long lastPrintTime = 0;
@@ -28,6 +30,8 @@ void setup() {
         while (1) { delay(10); }
     }
     Serial.println("BNO085 Initialized Successfully!");
+    
+    estimator.selectFilter(AttitudeFilterSel::MEKF);
 }
 
 void loop() {
@@ -50,18 +54,18 @@ void loop() {
         float my = imu.getMagY();
         float mz = imu.getMagZ();
 
-        //!TODO: Feed the data into the wrapper 
-        // estimator.updateESKF(ax, ay, az, gx, gy, gz, mx, my, mz, false);
+        // Feed the data into the wrapper 
+        estimator.update(dt, false);
 
-        //!TODO: Extract the filtered angles
-        // float roll = estimator.computeRoll();
-        // float pitch = estimator.computePitch();
+        // Extract the filtered angles
+        float roll = estimator.getRoll();
+        float pitch = estimator.getPitch();
+        float yaw = estimator.getYaw();
 
-        // Print debug data every 100ms
-        if (millis() - lastPrintTime >= 100) {
+        // Print debug data every 50ms
+        if (millis() - lastPrintTime >= 50) {
             lastPrintTime = millis();
-            Serial.printf("Acc [g]: %6.2f %6.2f %6.2f | Gyro [rad/s]: %6.2f %6.2f %6.2f | Mag [uT]: %6.2f %6.2f %6.2f\n",
-                          ax, ay, az, gx, gy, gz, mx, my, mz);
+            Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f\n", roll, pitch, yaw);
         }
     }
 }

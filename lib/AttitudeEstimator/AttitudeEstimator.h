@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "IMUSensor.h"
+#include "../../include/config.h"
 
 /**
  * @brief Abstract base class (Strategy) for orientation filters.
@@ -78,7 +79,7 @@ class AttitudeEstimator {
         IMUSensor* getIMU() const { return _imu; }
         void setMEKFTuning(float q_proc, float r_accel, float r_mag);
         void setMagneticReference(float mx, float my, float mz);
-        void setMagneticLocation(uint8_t location);
+        void setMagneticLocation(MagLocation location);
 
     private:
         IMUSensor* _imu;
