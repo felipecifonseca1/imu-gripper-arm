@@ -1,7 +1,8 @@
 #ifndef ESKF_FILTER_H
 #define ESKF_FILTER_H
 
-#include <math.h>
+#include <Arduino.h>
+#include <ArduinoEigen.h>
 
 class ESKFFilter : public IAttitudeFilter {
 public:
@@ -13,7 +14,25 @@ public:
     void reset() override;
 
 private:
-    float _q[4];
+    // Nominal state
+    Eigen::Quaternionf _q_nom;
+    Eigen::Vector3f _b_g;     // Gyro bias (rad/s)
+    Eigen::Vector3f _a_lin;   // Linear acceleration (m/s^2)
+
+    // Error covariance (9x9)
+    Eigen::Matrix<float, 9, 9> _P_cov;
+
+    // Filter status
+    bool _is_first_sample;
+
+    // Helper functions
+    Eigen::Matrix3f skewSymmetric(const Eigen::Vector3f& v);
+    Eigen::Quaternionf fromRotationVector(const Eigen::Vector3f& r);
+    Eigen::Vector3f rotMatToGravity(const Eigen::Matrix3f& R);
+    Eigen::Vector3f rotMatToMagnetic(const Eigen::Matrix3f& R);
+    Eigen::Quaternionf ecompass(const Eigen::Vector3f& a, const Eigen::Vector3f& m);
+    Eigen::Vector3f limitVectorNorm(const Eigen::Vector3f& v, float max_norm);
+    Eigen::Matrix3f buildHPart(const Eigen::Vector3f& v);
 };
 
 #endif // ESKF_FILTER_H
