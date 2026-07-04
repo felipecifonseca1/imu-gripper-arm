@@ -17,8 +17,8 @@ bool BNO085_HAL::init(bool verbose, bool autoCalibrate) {
     if (!_bno.enableReport(SH2_ACCELEROMETER, 10000)) {
         if (verbose) Serial.println("Could not enable Accelerometer");
     }
-    if (!_bno.enableReport(SH2_GYROSCOPE_CALIBRATED, 10000)) {
-        if (verbose) Serial.println("Could not enable Gyroscope");
+    if (!_bno.enableReport(SH2_GYROSCOPE_UNCALIBRATED, 10000)) {
+        if (verbose) Serial.println("Could not enable Gyroscope (Uncalibrated)");
     }
     if (!_bno.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED, 10000)) {
         if (verbose) Serial.println("Could not enable Magnetometer");
@@ -47,11 +47,11 @@ bool BNO085_HAL::update(float dt) {
                 _accY = sensorValue.un.accelerometer.y / GRAVITY_EARTH;
                 _accZ = sensorValue.un.accelerometer.z / GRAVITY_EARTH;
                 break;
-            case SH2_GYROSCOPE_CALIBRATED:
-                // Natively in rad/s
-                _gyroX = sensorValue.un.gyroscope.x;
-                _gyroY = sensorValue.un.gyroscope.y;
-                _gyroZ = sensorValue.un.gyroscope.z;
+            case SH2_GYROSCOPE_UNCALIBRATED:
+                // Natively in rad/s (raw/uncalibrated)
+                _gyroX = sensorValue.un.gyroscopeUncal.x;
+                _gyroY = sensorValue.un.gyroscopeUncal.y;
+                _gyroZ = sensorValue.un.gyroscopeUncal.z;
                 break;
             case SH2_MAGNETIC_FIELD_CALIBRATED:
                 // Natively in uT

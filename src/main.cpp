@@ -37,6 +37,7 @@ void setup() {
     // SensorCalibration::runDynamicCalibration(&imu); // Fast Accel/Mag scale and offsets (Rotate sensor)
     // SensorCalibration::runTumbleCalibration(&imu);  // High-Precision Accel/Mag (Static poses via Serial 's')
     // SensorCalibration::runStaticCalibration(&imu);  // For Gyro offset and Noise variances (Keep still)
+    // SensorCalibration::runAllanVarianceCollection(&imu, 1800000); // 30min test at 100Hz
 
     estimator.selectFilter(AttitudeFilterSel::ESKF);
     estimator.setUseMagnetometer(true);

@@ -39,8 +39,8 @@ void ESKFFilter::setQuaternion(float w, float x, float y, float z) {
 
 void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, bool ignoreAccel) {
 
-    const float AccelerometerNoise = 2.61980858e-06f; // Measured
-    const float GyroscopeNoise = 7.86768851e-07f; // Measured
+    const float AccelerometerNoise = 3.23930639e-04f; // Measured
+    const float GyroscopeNoise = 2.91057927e-06f; // Measured
     const float GyroscopeDriftNoise = 1e-7f;
     const float LinearAccelerationNoise = 1.0e-5f; // Slightly higher than AccelNoise
     const float MagnetometerNoise = 0.01f; // Scaled variance for normalized vector

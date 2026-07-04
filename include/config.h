@@ -20,7 +20,7 @@ constexpr float NET_ACC_THRESHOLD = 0.15f;
 constexpr float ACCEL_OFFSET[3] = {-0.014878f, 0.022074f, -0.025961f};
 constexpr float ACCEL_GAIN[9] = {1.037306f, 0.000000f, 0.000000f, 0.000000f, 0.998076f, 0.000000f, 0.000000f, 0.000000f, 0.985926f};
 
-constexpr float GYRO_OFFSET[3] = {0.000049f, 0.000150f, 0.000088f};
+constexpr float GYRO_OFFSET[3] = {0.000803f, -0.002635f, -0.002316f};
 constexpr float GYRO_GAIN[9]    = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 
 constexpr float MAG_OFFSET[3] = {3.890188f, -4.042345f, 1.342559f};

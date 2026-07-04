@@ -40,6 +40,7 @@ public:
     static bool calibrateNoise(const std::vector<Eigen::Vector3f>& data, float& variance_out);
 
     // --- High-Level Workflow Functions ---
+    static void runAllanVarianceCollection(IMUSensor* imu, unsigned long durationMs);
     static void runDynamicCalibration(IMUSensor* imu);
     static void runTumbleCalibration(IMUSensor* imu);
     static void runStaticCalibration(IMUSensor* imu);

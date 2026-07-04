@@ -103,6 +103,37 @@ bool SensorCalibration::calibrateNoise(const std::vector<Vector3f>& data, float&
 
 // --- High-Level Workflow Functions ---
 
+void SensorCalibration::runAllanVarianceCollection(IMUSensor* imu, unsigned long durationMs) {
+    Serial.println("\n--- IMU ALLAN VARIANCE COLLECTION ---");
+    Serial.printf("Running for %lu ms at 100Hz.\n", durationMs);
+    Serial.println("Leave sensor completely stationary.");
+    Serial.println("START_ALLAN_DATA");
+    
+    unsigned long startTime = millis();
+    unsigned long lastSampleTime = startTime;
+    
+    while (millis() - startTime < durationMs) {
+        if (imu->update()) {
+            unsigned long currentMillis = millis();
+            // Target 100Hz = 10ms
+            if (currentMillis - lastSampleTime >= 10) {
+                // Print timestamp (ms) and raw gyro rad/s
+                Serial.printf("%lu,%f,%f,%f\n", 
+                    currentMillis - startTime,
+                    imu->getGyroX_rads(),
+                    imu->getGyroY_rads(),
+                    imu->getGyroZ_rads());
+                lastSampleTime = currentMillis;
+            }
+        }
+        delay(1);
+    }
+    
+    Serial.println("END_ALLAN_DATA");
+    Serial.println("Allan Variance Collection complete.");
+    while(1) { delay(100); }
+}
+
 void SensorCalibration::runDynamicCalibration(IMUSensor* imu) {
     Serial.println("\n--- IMU DYNAMIC CALIBRATION ---");
     Serial.println("Rotate sensor in all directions. Collecting 1000 averaged samples (takes ~20s)...");
