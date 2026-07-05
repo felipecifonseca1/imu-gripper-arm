@@ -71,6 +71,10 @@ class AttitudeEstimator {
         float getTransformedGyroY() const { return _transformedGyroY; }
         float getTransformedGyroZ() const { return _transformedGyroZ; }
 
+        float getTransformedMagX() const { return _transformedMagX; }
+        float getTransformedMagY() const { return _transformedMagY; }
+        float getTransformedMagZ() const { return _transformedMagZ; }
+
         void setUseMagnetometer(bool use);
         void setMagnetometerWeight(float weight);
         bool getUseMagnetometer() const { return _useMagnetometer; }
@@ -105,6 +109,10 @@ class AttitudeEstimator {
         float _transformedGyroX = 0.0f;
         float _transformedGyroY = 0.0f;
         float _transformedGyroZ = 0.0f;
+
+        float _transformedMagX = 0.0f;
+        float _transformedMagY = 0.0f;
+        float _transformedMagZ = 0.0f;
 
         MadgwickFilter _madgwick;
         MahonyFilter _mahony;

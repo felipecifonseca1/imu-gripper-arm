@@ -8,6 +8,14 @@ class ESKFFilter : public IAttitudeFilter {
 public:
     ESKFFilter();
 
+    // High-frequency state propagation (Call this whenever new Gyro data arrives)
+    void predict(const Eigen::Vector3f& gyro, float dt);
+
+    // Independent multi-rate corrections (Call these whenever specific data packages land)
+    void updateAccelerometer(const Eigen::Vector3f& accel, float dt);
+    void updateMagnetometer(const Eigen::Vector3f& mag, float dt);
+
+    // Unified wrapper override (calls the sequential steps internally)
     void update(float dt, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, bool ignoreAccel) override;
     void getQuaternion(float& w, float& x, float& y, float& z) const override;
     void setQuaternion(float w, float x, float y, float z) override;

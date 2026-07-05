@@ -1,9 +1,11 @@
 #include "AttitudeEstimator.h"
 
 MadgwickFilter::MadgwickFilter() {
-    _beta = sqrt(3.0f / 4.0f) * (PI * (1.0f / 180.0f));
-    _zeta = sqrt(3.0f / 4.0f) * (PI * (1.0f / 180.0f));
-    _useZeta = false;
+    _beta = sqrt(3.0f / 4.0f) * sqrt(2.91e-06f);
+    _zeta = sqrt(3.0f / 4.0f) * (PI * (0.001f / 180.0f));
+    // _beta = sqrt(3.0f / 4.0f) * (PI * (1.0f / 180.0f));
+    // _zeta = sqrt(3.0f / 4.0f) * (PI * (1.0f / 180.0f));
+    _useZeta = true;
     _w_bx = 0.0f; _w_by = 0.0f; _w_bz = 0.0f;
     _magWeight = 0.05f;
     reset();

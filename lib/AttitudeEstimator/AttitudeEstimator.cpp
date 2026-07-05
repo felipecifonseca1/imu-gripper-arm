@@ -69,6 +69,10 @@ void AttitudeEstimator::update(float dt, bool ignoreAccel) {
         mx = MAG_GAIN[0] * (mx_raw - MAG_OFFSET[0]) + MAG_GAIN[1] * (my_raw - MAG_OFFSET[1]) + MAG_GAIN[2] * (mz_raw - MAG_OFFSET[2]);
         my = MAG_GAIN[3] * (mx_raw - MAG_OFFSET[0]) + MAG_GAIN[4] * (my_raw - MAG_OFFSET[1]) + MAG_GAIN[5] * (mz_raw - MAG_OFFSET[2]);
         mz = MAG_GAIN[6] * (mx_raw - MAG_OFFSET[0]) + MAG_GAIN[7] * (my_raw - MAG_OFFSET[1]) + MAG_GAIN[8] * (mz_raw - MAG_OFFSET[2]);
+
+        _transformedMagX = mx;
+        _transformedMagY = my;
+        _transformedMagZ = mz;
     }
 
     if (_filterSel == AttitudeFilterSel::NAV_MEKF) {
