@@ -4,15 +4,20 @@
 #include "AttitudeEstimator.h"
 #include "SensorCalibration.h"
 #include "config.h"
+#include "ServoController.h"
 
 // --- Pin Definitions ---
 #define I2C_SDA 21
 #define I2C_SCL 22
 #define BNO08X_INT 4 // Hardware Interrupt Pin
+#define GRIPPER_PIN 5 
+#define ELEVATION_PIN 18
+#define YAW_PIN 19
 
 // --- Hardware Instances ---
 BNO085_HAL imu;
 AttitudeEstimator estimator(&imu);
+ServoController servoController;
 
 // --- Timing Variables ---
 unsigned long lastPrintTime = 0;
@@ -53,74 +58,82 @@ void setup() {
     // SensorCalibration::runStaticCalibration(&imu);  // For Gyro offset and Noise variances (Keep still)
     // SensorCalibration::runAllanVarianceCollection(&imu, 1800000); // 30min test at 100Hz
 
-    
+    servoController.init(GRIPPER_PIN, ELEVATION_PIN, YAW_PIN);
+    Serial.println("\n--- Base Receiver & Servo Setup Complete ---");
+    Serial.println("Send 'roll,pitch' via Serial or Bluetooth for manual override, otherwise IMU takes control.");
+
     lastSampleTime = micros();
 }
 
 void loop() {
-    // Poll the hardware for new data integration 
+    // --- 1. Read from USB Serial Monitor (Manual Override) ---
+    if (Serial.available()) {
+        String input = Serial.readStringUntil('\n');
+        input.trim();
+        if (input.length() > 0) {
+            int commaIndex = input.indexOf(',');
+            if (commaIndex > 0) {
+                float targetRoll = input.substring(0, commaIndex).toFloat();
+                float targetPitch = input.substring(commaIndex + 1).toFloat();
+                
+                Serial.printf("Test Input -> Target Roll: %.2f | Target Pitch: %.2f\n", targetRoll, targetPitch);
+                // When sending manual commands, loop to let lowpass filter reach target
+                for(int i=0; i<50; i++) {
+                    servoController.update(targetRoll, targetPitch, 0.0f);
+                    delay(20);
+                }
+            }
+        }
+    }
+
+
+    // --- 2. Poll hardware and update IMU & Servos ---
     if (imu.update()) {
-        
-        // Calculate the exact dt for the Kalman Filter
         unsigned long currentMicros = micros();
         float dt = (currentMicros - lastSampleTime) / 1000000.0f;
         lastSampleTime = currentMicros;
 
-        float ax = imu.getAccX();
-        float ay = imu.getAccY();
-        float az = imu.getAccZ();
-        float gx = imu.getGyroX_rads();
-        float gy = imu.getGyroY_rads();
-        float gz = imu.getGyroZ_rads();
-        float mx = imu.getMagX();
-        float my = imu.getMagY();
-        float mz = imu.getMagZ();
-
-        //  Measure Filter Update Latency 
         unsigned long startCompute = micros();
-
-        // Feed the data into the wrapper 
         estimator.update(dt, false);
-
         unsigned long endCompute = micros();
 
-        // Calculate metrics
         unsigned long currentUpdateMicros = endCompute - startCompute;
         
         if (currentUpdateMicros > maxUpdateMicros) {
-            maxUpdateMicros = currentUpdateMicros; // Capture worst-case latency spike
+            maxUpdateMicros = currentUpdateMicros;
         }
 
         if (avgUpdateMicros == 0.0f) {
-            avgUpdateMicros = (float)currentUpdateMicros; // Initialize filter
+            avgUpdateMicros = (float)currentUpdateMicros;
         } else {
-            // Apply Exponential Moving Average filter
             avgUpdateMicros = (EMA_ALPHA * currentUpdateMicros) + ((1.0f - EMA_ALPHA) * avgUpdateMicros);
         }
 
-        // Extract the filtered angles
         float roll = estimator.getRoll();
         float pitch = estimator.getPitch();
         float yaw = estimator.getYaw();
+
+        // Update servos with IMU data
+        servoController.update(roll, pitch, yaw);
 
         // Print debug data every 50ms 
         if (millis() - lastPrintTime >= 50) {
             lastPrintTime = millis();
             
-            // Standard Text Readout for Serial Monitor
             Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f | Comp Time: %lu us (Avg: %.2f us, Max: %lu us)\n",
                           roll, pitch, yaw, currentUpdateMicros, avgUpdateMicros, maxUpdateMicros);
             
-
             Serial.printf(
                 ">Roll:%f\n>Pitch:%f\n>Yaw:%f\n"
                 ">ax:%f\n>ay:%f\n>az:%f\n"
                 ">gx:%f\n>gy:%f\n>gz:%f\n"
-                ">mx:%f\n>my:%f\n>mz:%f\n",
+                ">mx:%f\n>my:%f\n>mz:%f\n"
+                ">Servo1_Virtual:%d\n>Servo2_Virtual:%d\n>Servo3_Virtual:%d\n",
                 roll, pitch, yaw,
                 estimator.getTransformedAccX(), estimator.getTransformedAccY(), estimator.getTransformedAccZ(),
                 estimator.getTransformedGyroX(), estimator.getTransformedGyroY(), estimator.getTransformedGyroZ(),
-                estimator.getTransformedMagX(), estimator.getTransformedMagY(), estimator.getTransformedMagZ()
+                estimator.getTransformedMagX(), estimator.getTransformedMagY(), estimator.getTransformedMagZ(),
+                servoController.getGripperAngle() - 90, servoController.getElevationAngle() - 90, servoController.getYawAngle() - 90
             );
         }
     }
@@ -128,8 +141,6 @@ void loop() {
 
 /**
  * @brief Isolated Stress Test Function
- * Evaluates the execution time of the filter update function repeatedly 
- * without waiting for I2C data streams to establish a pure mathematical runtime profile.
  */
 void runFilterSpeedStressTest() {
     Serial.println("\n=====================================================");
@@ -143,8 +154,6 @@ void runFilterSpeedStressTest() {
     
     unsigned long startTest = micros();
     for (int i = 0; i < iterations; i++) {
-        // We do not call imu.update() here. This keeps sensor readings static 
-        // inside the HAL layer cache, isolating purely the filter's backend math processing.
         estimator.update(simulated_dt, false);
     }
     unsigned long endTest = micros();
@@ -156,6 +165,4 @@ void runFilterSpeedStressTest() {
     Serial.printf(">> Total Computation Duration : %lu us\n", totalTimeMicros);
     Serial.printf(">> Isolated Pure Filter Cost  : %.3f us per call\n", averageCallMicros);
     Serial.println("=====================================================\n");
-    
 }
-
