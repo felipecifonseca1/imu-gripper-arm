@@ -7,12 +7,12 @@
 #include "ServoController.h"
 
 // --- Pin Definitions ---
-#define I2C_SDA 21
-#define I2C_SCL 22
-#define BNO08X_INT 4 // Hardware Interrupt Pin
-#define GRIPPER_PIN 5 
-#define ELEVATION_PIN 18
-#define YAW_PIN 19
+#define I2C_SDA 25
+#define I2C_SCL 26
+#define BNO08X_INT 34 // Hardware Interrupt Pin
+#define GRIPPER_PIN 32 
+#define ELEVATION_PIN 33
+#define YAW_PIN 27
 
 // --- Hardware Instances ---
 BNO085_HAL imu;
@@ -29,18 +29,22 @@ unsigned long maxUpdateMicros = 0;   // Tracks worst-case execution spike
 float avgUpdateMicros = 0.0f;        // Running Exponential Moving Average (EMA)
 const float EMA_ALPHA = 0.01f;       // Smoothing weight factor (looks at last ~100 samples)
 
+// --- Gripper Toggle State ---
+bool gripperOverride = false;        // true = spacebar controls gripper, false = IMU controls
+bool gripperOpen = true;             // toggle state: true = open (90°), false = closed (0°)
+
 // Forward declaration of the timing stress test
 void runFilterSpeedStressTest();
 
 void setup() {
     Serial.begin(115200);
-    while (!Serial) delay(10);
+    unsigned long startWait = millis();
+    while (!Serial && millis() - startWait < 3000) delay(10); // Warte max 3 Sekunden auf den Serial Monitor
     
     Serial.println("\n--- BNO085 Hardware Verification Test ---");
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setTimeOut(200);
-    Wire.setClock(400000); 
-    
+    Wire.setClock(100000);     
     if (!imu.init(true, false)) {
         Serial.println("ERROR: Failed to initialize BNO085!");
         while (1) { delay(10); }
@@ -59,25 +63,36 @@ void setup() {
     // SensorCalibration::runAllanVarianceCollection(&imu, 1800000); // 30min test at 100Hz
 
     servoController.init(GRIPPER_PIN, ELEVATION_PIN, YAW_PIN);
-    Serial.println("\n--- Base Receiver & Servo Setup Complete ---");
-    Serial.println("Send 'roll,pitch' via Serial or Bluetooth for manual override, otherwise IMU takes control.");
+    servoController.setDeadbands(4.0, 2.0, 2.0);      // Degrees of IMU change needed before servo reacts
+    servoController.setFilterAlphas(0.35, 0.3, 0.5); // Higher = faster response, lower = smoother
+    
+    Serial.println("\n--- Setup Complete ---");
+    Serial.println("Send 'roll,pitch' for manual override. Press SPACE to toggle gripper open/closed.");
 
     lastSampleTime = micros();
 }
 
 void loop() {
-    // --- 1. Read from USB Serial Monitor (Manual Override) ---
+    // --- 1. Read from USB Serial Monitor ---
     if (Serial.available()) {
-        String input = Serial.readStringUntil('\n');
-        input.trim();
-        if (input.length() > 0) {
-            int commaIndex = input.indexOf(',');
+        String rawInput = Serial.readStringUntil('\n');
+        bool isSpacePress = (rawInput.indexOf(' ') >= 0);
+        rawInput.trim();
+
+        // SPACE BAR: Toggle gripper open/closed
+        if (isSpacePress && rawInput.length() == 0) {
+            gripperOverride = true;
+            gripperOpen = !gripperOpen;
+            Serial.printf(">> Gripper: %s\n", gripperOpen ? "OPEN (90 deg)" : "CLOSED (0 deg)");
+        }
+        // "roll,pitch": Manual servo override
+        else if (rawInput.length() > 0) {
+            int commaIndex = rawInput.indexOf(',');
             if (commaIndex > 0) {
-                float targetRoll = input.substring(0, commaIndex).toFloat();
-                float targetPitch = input.substring(commaIndex + 1).toFloat();
+                float targetRoll = rawInput.substring(0, commaIndex).toFloat();
+                float targetPitch = rawInput.substring(commaIndex + 1).toFloat();
                 
                 Serial.printf("Test Input -> Target Roll: %.2f | Target Pitch: %.2f\n", targetRoll, targetPitch);
-                // When sending manual commands, loop to let lowpass filter reach target
                 for(int i=0; i<50; i++) {
                     servoController.update(targetRoll, targetPitch, 0.0f);
                     delay(20);
@@ -113,28 +128,24 @@ void loop() {
         float pitch = estimator.getPitch();
         float yaw = estimator.getYaw();
 
-        // Update servos with IMU data
-        servoController.update(roll, pitch, yaw);
+        // Override gripper roll if spacebar toggle is active
+        if (gripperOverride) {
+            roll = gripperOpen ? -6.0f : -25.0f;  // -6 = 90° servo (open), -25 = 0° servo (closed)
+        }
+
+        // Update servos with IMU data (Max 50Hz / 20ms)
+        static unsigned long lastServoUpdate = 0;
+        if (millis() - lastServoUpdate >= 20) {
+            lastServoUpdate = millis();
+            servoController.update(roll, pitch, yaw);
+        }
 
         // Print debug data every 50ms 
         if (millis() - lastPrintTime >= 50) {
             lastPrintTime = millis();
-            
-            Serial.printf("Roll: %6.2f | Pitch: %6.2f | Yaw: %6.2f | Comp Time: %lu us (Avg: %.2f us, Max: %lu us)\n",
-                          roll, pitch, yaw, currentUpdateMicros, avgUpdateMicros, maxUpdateMicros);
-            
-            Serial.printf(
-                ">Roll:%f\n>Pitch:%f\n>Yaw:%f\n"
-                ">ax:%f\n>ay:%f\n>az:%f\n"
-                ">gx:%f\n>gy:%f\n>gz:%f\n"
-                ">mx:%f\n>my:%f\n>mz:%f\n"
-                ">Servo1_Virtual:%d\n>Servo2_Virtual:%d\n>Servo3_Virtual:%d\n",
-                roll, pitch, yaw,
-                estimator.getTransformedAccX(), estimator.getTransformedAccY(), estimator.getTransformedAccZ(),
-                estimator.getTransformedGyroX(), estimator.getTransformedGyroY(), estimator.getTransformedGyroZ(),
-                estimator.getTransformedMagX(), estimator.getTransformedMagY(), estimator.getTransformedMagZ(),
-                servoController.getGripperAngle() - 90, servoController.getElevationAngle() - 90, servoController.getYawAngle() - 90
-            );
+            Serial.printf("Target [Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f] ---> Servos [Gripper: %3d | Elevation: %3d | Yaw: %3d]\n",
+                          roll, pitch, yaw,
+                          servoController.getGripperAngle(), servoController.getElevationAngle(), servoController.getYawAngle());
         }
     }
 }

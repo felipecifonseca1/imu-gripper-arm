@@ -14,8 +14,8 @@ public:
     int getElevationAngle();
     int getYawAngle();
     
-    void setFilterAlpha(float alpha);
-    void setDeadband(float deadband);
+    void setFilterAlphas(float alphaRoll, float alphaPitch, float alphaYaw);
+    void setDeadbands(float deadbandRoll, float deadbandPitch, float deadbandYaw);
 
 private:
     Servo _gripperServo;
@@ -26,8 +26,17 @@ private:
     float _currentPitch;
     float _currentYaw;
 
-    float _alpha;
-    float _deadband;
+    float _lockedTargetRoll;
+    float _lockedTargetPitch;
+    float _lockedTargetYaw;
+
+    float _alphaRoll;
+    float _alphaPitch;
+    float _alphaYaw;
+    
+    float _deadbandRoll;
+    float _deadbandPitch;
+    float _deadbandYaw;
 };
 
 #endif
