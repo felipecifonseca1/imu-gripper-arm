@@ -103,6 +103,11 @@ bool SensorCalibration::calibrateNoise(const std::vector<Vector3f>& data, float&
 
 // --- High-Level Workflow Functions ---
 
+/**
+ * @brief Collects raw gyro data over a specified duration for Allan Variance analysis.
+ * @param imu Pointer to IMUSensor instance.
+ * @param durationMs Collection duration in milliseconds.
+ */
 void SensorCalibration::runAllanVarianceCollection(IMUSensor* imu, unsigned long durationMs) {
     Serial.println("\n--- IMU ALLAN VARIANCE COLLECTION ---");
     Serial.printf("Running for %lu ms at 100Hz.\n", durationMs);
@@ -134,6 +139,10 @@ void SensorCalibration::runAllanVarianceCollection(IMUSensor* imu, unsigned long
     while(1) { delay(100); }
 }
 
+/**
+ * @brief Runs dynamic ellipsoid calibration routine requiring sensor rotation.
+ * @param imu Pointer to IMUSensor instance.
+ */
 void SensorCalibration::runDynamicCalibration(IMUSensor* imu) {
     Serial.println("\n--- IMU DYNAMIC CALIBRATION ---");
     Serial.println("Rotate sensor in all directions. Collecting 1000 averaged samples (takes ~20s)...");
@@ -194,6 +203,10 @@ void SensorCalibration::runDynamicCalibration(IMUSensor* imu) {
     while (1) { delay(100); } // Halt
 }
 
+/**
+ * @brief Runs interactive static tumble calibration using multi-position sampling.
+ * @param imu Pointer to IMUSensor instance.
+ */
 void SensorCalibration::runTumbleCalibration(IMUSensor* imu) {
     Serial.println("\n--- IMU HIGH-PRECISION TUMBLE CALIBRATION ---");
     Serial.println("1. Place sensor in a static orientation.");
@@ -255,6 +268,10 @@ void SensorCalibration::runTumbleCalibration(IMUSensor* imu) {
     while (1) { delay(100); } // Halt
 }
 
+/**
+ * @brief Runs static zero-rate offset calibration and estimates noise variances.
+ * @param imu Pointer to IMUSensor instance.
+ */
 void SensorCalibration::runStaticCalibration(IMUSensor* imu) {
     Serial.println("\n--- IMU STATIC CALIBRATION ---");
     Serial.println("Leave the sensor completely stationary on a flat surface. Collecting 1000 samples...");

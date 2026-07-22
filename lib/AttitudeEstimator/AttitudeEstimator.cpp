@@ -151,33 +151,70 @@ void AttitudeEstimator::setQuaternion(float w, float x, float y, float z) {
     }
 }
 
+/**
+ * @brief Resets estimator state.
+ */
 void AttitudeEstimator::resetEstimatorState() {
     resetOrientation();
 }
 
 // --- Euler Angle Computations ---
+
+/**
+ * @brief Gets estimated Roll angle.
+ * @return Roll in degrees.
+ */
 float AttitudeEstimator::getRoll()  const { return computeRoll(); }
+
+/**
+ * @brief Gets estimated Pitch angle.
+ * @return Pitch in degrees.
+ */
 float AttitudeEstimator::getPitch() const { return computePitch();}
+
+/**
+ * @brief Gets estimated Yaw angle.
+ * @return Yaw in degrees.
+ */
 float AttitudeEstimator::getYaw()   const { return computeYaw();  }
 
+/**
+ * @brief Gets W scalar component of active quaternion.
+ * @return Quaternion W component.
+ */
 float AttitudeEstimator::getQuaternionW() const { 
     float w, x, y, z; 
     if (_activeFilter) _activeFilter->getQuaternion(w, x, y, z); 
     else { w = 1.0f; } // fallback
     return w; 
 }
+
+/**
+ * @brief Gets X vector component of active quaternion.
+ * @return Quaternion X component.
+ */
 float AttitudeEstimator::getQuaternionX() const { 
     float w, x, y, z; 
     if (_activeFilter) _activeFilter->getQuaternion(w, x, y, z); 
     else { x = 0.0f; } // fallback
     return x; 
 }
+
+/**
+ * @brief Gets Y vector component of active quaternion.
+ * @return Quaternion Y component.
+ */
 float AttitudeEstimator::getQuaternionY() const { 
     float w, x, y, z; 
     if (_activeFilter) _activeFilter->getQuaternion(w, x, y, z); 
     else { y = 0.0f; } // fallback
     return y; 
 }
+
+/**
+ * @brief Gets Z vector component of active quaternion.
+ * @return Quaternion Z component.
+ */
 float AttitudeEstimator::getQuaternionZ() const { 
     float w, x, y, z; 
     if (_activeFilter) _activeFilter->getQuaternion(w, x, y, z); 
@@ -223,7 +260,6 @@ float AttitudeEstimator::computeYaw() const {
 
 /**
  * @brief Calculates the tilt angle relative to the earth's gravity vector.
- * @param physicalZAxisDown True if the IMU is mounted Z-axis pointing down.
  * @return Tilt angle in degrees [0-180].
  */
 float AttitudeEstimator::getTilt() const {
@@ -264,11 +300,22 @@ float AttitudeEstimator::getNetVerticalAcceleration() const {
     return netAcc;
 }
 
-
+/**
+ * @brief Configures MEKF noise tuning parameters.
+ * @param q_proc Process noise scaling factor.
+ * @param r_accel Accelerometer measurement noise covariance.
+ * @param r_mag Magnetometer measurement noise covariance.
+ */
 void AttitudeEstimator::setMEKFTuning(float q_proc, float r_accel, float r_mag) {
     _mekf.setMEKFTuning(q_proc, r_accel, r_mag);
 }
 
+/**
+ * @brief Sets custom normalized magnetic reference vector.
+ * @param mx Magnetometer reference X vector component.
+ * @param my Magnetometer reference Y vector component.
+ * @param mz Magnetometer reference Z vector component.
+ */
 void AttitudeEstimator::setMagneticReference(float mx, float my, float mz) {
     float norm = sqrt(mx*mx + my*my + mz*mz);
     if (norm > 1e-6f) {
@@ -280,6 +327,10 @@ void AttitudeEstimator::setMagneticReference(float mx, float my, float mz) {
     }
 }
 
+/**
+ * @brief Sets magnetic reference vector according to predefined geographical location.
+ * @param location MagLocation enum choice.
+ */
 void AttitudeEstimator::setMagneticLocation(MagLocation location) {
     switch(location) {
         case MagLocation::SAO_PAULO:
@@ -301,6 +352,10 @@ void AttitudeEstimator::setMagneticLocation(MagLocation location) {
     }
 }
 
+/**
+ * @brief Sets magnetometer weight factor for filter fusion.
+ * @param weight Magnetometer weight between 0.0 and 1.0.
+ */
 void AttitudeEstimator::setMagnetometerWeight(float weight) {
     _madgwick.setMagnetometerWeight(weight);
     _mahony.setMagnetometerWeight(weight);

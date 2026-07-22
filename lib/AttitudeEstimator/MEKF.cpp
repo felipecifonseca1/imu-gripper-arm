@@ -291,6 +291,9 @@
 
 using namespace Eigen;
 
+/**
+ * @brief Constructs MEKF object with default initial tuning parameters.
+ */
 MEKF::MEKF() {
     _useMagnetometer = true;
     _mekf_q_proc = 0.001f;
@@ -307,25 +310,51 @@ MEKF::MEKF() {
     _cov = Matrix<float, 6, 6>::Identity() * 0.1f;
 }
 
+/**
+ * @brief Resets quaternion to identity and bias to zero.
+ */
 void MEKF::resetState() {
     _quat << 1.0f, 0.0f, 0.0f, 0.0f;
     _bias << 0.0f, 0.0f, 0.0f;
 }
 
+/**
+ * @brief Resets state and error covariance.
+ */
 void MEKF::reset() {
     resetState();
     _cov = Matrix<float, 6, 6>::Identity() * 0.1f;
 }
 
+/**
+ * @brief Gets current estimated unit quaternion values.
+ * @param w Output w component.
+ * @param x Output x component.
+ * @param y Output y component.
+ * @param z Output z component.
+ */
 void MEKF::getQuaternion(float& w, float& x, float& y, float& z) const {
     w = _quat(0); x = _quat(1); y = _quat(2); z = _quat(3);
 }
 
+/**
+ * @brief Sets unit quaternion state.
+ * @param w Scalar w.
+ * @param x Vector x.
+ * @param y Vector y.
+ * @param z Vector z.
+ */
 void MEKF::setQuaternion(float w, float x, float y, float z) {
     _quat << w, x, y, z;
     _quat.normalize();
 }
 
+/**
+ * @brief Sets MEKF tuning parameters.
+ * @param q_proc Process noise parameter.
+ * @param r_accel Accelerometer noise parameter.
+ * @param r_mag Magnetometer noise parameter.
+ */
 void MEKF::setMEKFTuning(float q_proc, float r_accel, float r_mag) {
     _mekf_q_proc = q_proc;
     _mekf_r_accel = r_accel;
@@ -333,26 +362,48 @@ void MEKF::setMEKFTuning(float q_proc, float r_accel, float r_mag) {
     setProcessNoise(q_proc);
 }
 
+/**
+ * @brief Configures process noise diagonal matrices.
+ * @param q_diagonal Process noise magnitude factor.
+ */
 void MEKF::setProcessNoise(float q_diagonal) {
     _Q_theta = Matrix3f::Identity() * (q_diagonal * 0.1f); // Time-scaled in predict
     _Q_bias = Matrix3f::Identity() * (q_diagonal * 0.01f);
 }
 
+/**
+ * @brief Sets magnetometer usage flag.
+ * @param use True to use magnetometer.
+ */
 void MEKF::setUseMagnetometer(bool use) {
     _useMagnetometer = use;
 }
 
+/**
+ * @brief Sets world frame magnetic reference vector.
+ * @param mx Reference vector X.
+ * @param my Reference vector Y.
+ * @param mz Reference vector Z.
+ */
 void MEKF::setMagneticReference(float mx, float my, float mz) {
     _mag_ref_x = mx;
     _mag_ref_y = my;
     _mag_ref_z = mz;
 }
 
+/**
+ * @brief Enforces mathematical symmetry on error covariance matrix.
+ */
 void MEKF::forceSymmetry() {
     // Only process the upper triangle to force the lower triangle to match
     _cov = 0.5f * (_cov + _cov.transpose().eval());
 }
 
+/**
+ * @brief Calculates 3x3 skew-symmetric matrix for 3D vector.
+ * @param v Input 3D vector.
+ * @return 3x3 skew-symmetric matrix.
+ */
 Matrix3f MEKF::skewSymmetric(const Vector3f& v) {
     Matrix3f S;
     S <<  0.0f, -v(2),  v(1),
@@ -361,6 +412,12 @@ Matrix3f MEKF::skewSymmetric(const Vector3f& v) {
     return S;
 }
 
+/**
+ * @brief Computes Hamilton quaternion multiplication.
+ * @param q1 First quaternion.
+ * @param q2 Second quaternion.
+ * @return Product quaternion vector.
+ */
 Vector4f MEKF::quatMult(const Vector4f& q1, const Vector4f& q2) {
     Vector4f q_out;
     q_out(0) = q1(0)*q2(0) - q1(1)*q2(1) - q1(2)*q2(2) - q1(3)*q2(3);
@@ -373,6 +430,11 @@ Vector4f MEKF::quatMult(const Vector4f& q1, const Vector4f& q2) {
 // ---------------------------------------------------------
 // OPTIMIZED ANALYTICAL PREDICT METHOD 
 // ---------------------------------------------------------
+/**
+ * @brief High-frequency prediction phase propagating nominal orientation and covariance.
+ * @param gyro Gyroscope measurement vector in rad/s.
+ * @param dt Delta time step in seconds.
+ */
 void MEKF::predict(const Vector3f& gyro, float dt) {
     // 1. Bias-compensated gyro vector
     Vector3f omega = gyro - _bias;
@@ -426,6 +488,12 @@ void MEKF::predict(const Vector3f& gyro, float dt) {
 // ---------------------------------------------------------
 // OPTIMIZED SEQUENTIAL UPDATE METHODS (3D / 3x3 Updates)
 // ---------------------------------------------------------
+/**
+ * @brief Sequential measurement update performing Kalman correction.
+ * @param measurement Observed 3D sensor reading in body frame.
+ * @param reference Expected 3D reference vector in world frame.
+ * @param R_meas 3x3 measurement noise covariance matrix.
+ */
 void MEKF::updateMeasurement(const Vector3f& measurement,
                              const Vector3f& reference,
                              const Matrix3f& R_meas) {
@@ -480,7 +548,12 @@ void MEKF::updateMeasurement(const Vector3f& measurement,
     _cov = 0.5f * (next_cov + next_cov.transpose().eval());
 }
 
-// Kept the original function signature, but it now executes a full 3D update
+/**
+ * @brief Updates heading from magnetometer measurements.
+ * @param mag_measure Measured magnetometer 3D vector.
+ * @param mag_ref World magnetic reference 3D vector.
+ * @param r_yaw Scalar yaw measurement noise variance.
+ */
 void MEKF::updateMagnetometerYaw(const Vector3f& mag_measure,
                                  const Vector3f& mag_ref,
                                  float r_yaw) {
@@ -497,6 +570,20 @@ void MEKF::updateMagnetometerYaw(const Vector3f& mag_measure,
     updateMeasurement(mag_measure.normalized(), mag_ref.normalized(), R_meas);
 }
 
+/**
+ * @brief Main sequential MEKF filter step for IAttitudeFilter interface.
+ * @param dt Delta time step in seconds.
+ * @param ax Accelerometer X in g.
+ * @param ay Accelerometer Y in g.
+ * @param az Accelerometer Z in g.
+ * @param gx Gyroscope X in rad/s.
+ * @param gy Gyroscope Y in rad/s.
+ * @param gz Gyroscope Z in rad/s.
+ * @param mx Magnetometer X in uT.
+ * @param my Magnetometer Y in uT.
+ * @param mz Magnetometer Z in uT.
+ * @param ignoreAccel Flag to skip accelerometer update.
+ */
 void MEKF::update(float dt, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, bool ignoreAccel) {
     Vector3f gyro(gx, gy, gz);
     Vector3f accel(ax, ay, az);

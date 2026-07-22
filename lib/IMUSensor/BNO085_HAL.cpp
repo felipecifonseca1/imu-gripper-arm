@@ -1,8 +1,18 @@
 #include "BNO085_HAL.h"
 
+/**
+ * @brief Constructs BNO085_HAL object with specified I2C address.
+ * @param i2cAddr I2C address of BNO085 device.
+ */
 BNO085_HAL::BNO085_HAL(uint8_t i2cAddr) : _i2cAddr(i2cAddr) {
 }
 
+/**
+ * @brief Initializes BNO085 sensor over I2C and enables report channels.
+ * @param verbose Flag to print status messages.
+ * @param autoCalibrate Flag for auto calibration.
+ * @return true if initialized successfully, false otherwise.
+ */
 bool BNO085_HAL::init(bool verbose, bool autoCalibrate) {
     if (verbose) {
         Serial.println("Initializing BNO085...");
@@ -31,6 +41,11 @@ bool BNO085_HAL::init(bool verbose, bool autoCalibrate) {
     return true;
 }
 
+/**
+ * @brief Polls sensor event queue and updates internal states.
+ * @param dt Time delta step in seconds.
+ * @return true if new data was processed, false otherwise.
+ */
 bool BNO085_HAL::update(float dt) {
     if (_hilMode) return true;
 
@@ -65,6 +80,18 @@ bool BNO085_HAL::update(float dt) {
     return newData;
 }
 
+/**
+ * @brief Injects simulated sensor data for HIL mode.
+ * @param ax Accelerometer X in g.
+ * @param ay Accelerometer Y in g.
+ * @param az Accelerometer Z in g.
+ * @param gx Gyroscope X in rad/s.
+ * @param gy Gyroscope Y in rad/s.
+ * @param gz Gyroscope Z in rad/s.
+ * @param mx Magnetometer X in uT.
+ * @param my Magnetometer Y in uT.
+ * @param mz Magnetometer Z in uT.
+ */
 void BNO085_HAL::injectData(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz) {
     _hilMode = true;
     _accX = ax; 

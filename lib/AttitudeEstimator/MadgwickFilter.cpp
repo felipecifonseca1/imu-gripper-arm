@@ -1,5 +1,8 @@
 #include "AttitudeEstimator.h"
 
+/**
+ * @brief Constructs MadgwickFilter with default gains and zeros states.
+ */
 MadgwickFilter::MadgwickFilter() {
     _beta = sqrt(3.0f / 4.0f) * sqrt(2.91e-06f);
     _zeta = sqrt(3.0f / 4.0f) * (PI * (0.001f / 180.0f));
@@ -11,37 +14,80 @@ MadgwickFilter::MadgwickFilter() {
     reset();
 }
 
+/**
+ * @brief Resets orientation quaternion to identity and bias terms to zero.
+ */
 void MadgwickFilter::reset() {
     _q[0] = 1.0f; _q[1] = 0.0f; _q[2] = 0.0f; _q[3] = 0.0f;
     _w_bx = 0.0f; _w_by = 0.0f; _w_bz = 0.0f;
 }
 
+/**
+ * @brief Gets estimated unit quaternion components.
+ * @param w Output w scalar reference.
+ * @param x Output x vector reference.
+ * @param y Output y vector reference.
+ * @param z Output z vector reference.
+ */
 void MadgwickFilter::getQuaternion(float& w, float& x, float& y, float& z) const {
     w = _q[0]; x = _q[1]; y = _q[2]; z = _q[3];
 }
 
+/**
+ * @brief Sets unit quaternion and normalizes.
+ * @param w Scalar w component.
+ * @param x Vector x component.
+ * @param y Vector y component.
+ * @param z Vector z component.
+ */
 void MadgwickFilter::setQuaternion(float w, float x, float y, float z) {
     _q[0] = w; _q[1] = x; _q[2] = y; _q[3] = z;
     float recipNorm = 1.0f / sqrt(_q[0] * _q[0] + _q[1] * _q[1] + _q[2] * _q[2] + _q[3] * _q[3]);
     _q[0] *= recipNorm; _q[1] *= recipNorm; _q[2] *= recipNorm; _q[3] *= recipNorm;
 }
 
+/**
+ * @brief Sets beta algorithm gain from gyro error rate.
+ * @param errorDegPerSec Estimated gyroscope drift error rate in deg/s.
+ */
 void MadgwickFilter::setFilterBeta(float errorDegPerSec) {
     float gyroErr = PI * (errorDegPerSec / 180.0f);
     _beta = sqrt(3.0f / 4.0f) * gyroErr;
     _zeta = _beta; 
 }
 
+/**
+ * @brief Enables or disables gyro drift learning mode.
+ * @param enabled True to enable drift learning.
+ */
 void MadgwickFilter::setDriftLearning(bool enabled) {
     _useZeta = enabled;
 }
 
+/**
+ * @brief Sets magnetometer weight factor.
+ * @param weight Magnetometer weight between 0.0 and 1.0.
+ */
 void MadgwickFilter::setMagnetometerWeight(float weight) {
     if (weight < 0.0f) weight = 0.0f;
     if (weight > 1.0f) weight = 1.0f;
     _magWeight = weight;
 }
 
+/**
+ * @brief Main Madgwick orientation gradient descent update step.
+ * @param dt Integration time step in seconds.
+ * @param ax Accelerometer X in g.
+ * @param ay Accelerometer Y in g.
+ * @param az Accelerometer Z in g.
+ * @param gx Gyroscope X in rad/s.
+ * @param gy Gyroscope Y in rad/s.
+ * @param gz Gyroscope Z in rad/s.
+ * @param mx Magnetometer X in uT.
+ * @param my Magnetometer Y in uT.
+ * @param mz Magnetometer Z in uT.
+ * @param ignoreAccel Flag to suppress accelerometer update step.
+ */
 void MadgwickFilter::update(float dt, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, bool ignoreAccel) {
     double q0 = _q[0], q1 = _q[1], q2 = _q[2], q3 = _q[3];
     double recipNorm;

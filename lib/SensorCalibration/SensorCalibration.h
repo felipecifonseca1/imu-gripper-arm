@@ -40,9 +40,29 @@ public:
     static bool calibrateNoise(const std::vector<Eigen::Vector3f>& data, float& variance_out);
 
     // --- High-Level Workflow Functions ---
+    /**
+     * @brief Collects raw gyro data over a duration for Allan Variance noise analysis.
+     * @param imu Pointer to IMUSensor instance.
+     * @param durationMs Duration of data collection in milliseconds.
+     */
     static void runAllanVarianceCollection(IMUSensor* imu, unsigned long durationMs);
+
+    /**
+     * @brief Performs dynamic sphere/ellipsoid fit calibration while sensor is rotated.
+     * @param imu Pointer to IMUSensor instance.
+     */
     static void runDynamicCalibration(IMUSensor* imu);
+
+    /**
+     * @brief Performs interactive static tumble calibration using multi-position sampling.
+     * @param imu Pointer to IMUSensor instance.
+     */
     static void runTumbleCalibration(IMUSensor* imu);
+
+    /**
+     * @brief Performs static zero-rate offset calibration and estimates noise variances.
+     * @param imu Pointer to IMUSensor instance.
+     */
     static void runStaticCalibration(IMUSensor* imu);
 };
 

@@ -7,8 +7,8 @@
 #include "ServoController.h"
 
 // --- Pin Definitions ---
-#define I2C_SDA 25
-#define I2C_SCL 26
+#define I2C_SDA 21
+#define I2C_SCL 22
 #define BNO08X_INT 34 // Hardware Interrupt Pin
 #define GRIPPER_PIN 32 
 #define ELEVATION_PIN 33
@@ -33,18 +33,23 @@ const float EMA_ALPHA = 0.01f;       // Smoothing weight factor (looks at last ~
 bool gripperOverride = false;        // true = spacebar controls gripper, false = IMU controls
 bool gripperOpen = true;             // toggle state: true = open (90°), false = closed (0°)
 
-// Forward declaration of the timing stress test
+/**
+ * @brief Forward declaration of the timing stress test function.
+ */
 void runFilterSpeedStressTest();
 
+/**
+ * @brief Arduino setup routine initializing serial, I2C IMU hardware, orientation estimator, and servos.
+ */
 void setup() {
     Serial.begin(115200);
     unsigned long startWait = millis();
-    while (!Serial && millis() - startWait < 3000) delay(10); // Warte max 3 Sekunden auf den Serial Monitor
+    while (!Serial && millis() - startWait < 3000) delay(10); // Wait max 3 seconds for Serial Monitor
     
     Serial.println("\n--- BNO085 Hardware Verification Test ---");
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setTimeOut(200);
-    Wire.setClock(100000);     
+    Wire.setClock(100000);     // 100kHz Fast-mode I2C for reduced bus latency
     if (!imu.init(true, false)) {
         Serial.println("ERROR: Failed to initialize BNO085!");
         while (1) { delay(10); }
@@ -54,17 +59,25 @@ void setup() {
     estimator.selectFilter(AttitudeFilterSel::ESKF);
     estimator.setUseMagnetometer(true);
     estimator.setMagneticLocation(MagLocation::MUNICH);
-    
+
     // --- Run Isolated Computational Stress Test ---
-    runFilterSpeedStressTest();
+    // runFilterSpeedStressTest();
     // SensorCalibration::runDynamicCalibration(&imu); // Fast Accel/Mag scale and offsets (Rotate sensor)
     // SensorCalibration::runTumbleCalibration(&imu);  // High-Precision Accel/Mag (Static poses via Serial 's')
     // SensorCalibration::runStaticCalibration(&imu);  // For Gyro offset and Noise variances (Keep still)
     // SensorCalibration::runAllanVarianceCollection(&imu, 1800000); // 30min test at 100Hz
 
     servoController.init(GRIPPER_PIN, ELEVATION_PIN, YAW_PIN);
-    servoController.setDeadbands(4.0, 2.0, 2.0);      // Degrees of IMU change needed before servo reacts
-    servoController.setFilterAlphas(0.35, 0.3, 0.5); // Higher = faster response, lower = smoother
+    // Continuous noise threshold 
+    servoController.setDeadbands(2.0f, 1.0f, 1.5f);
+    // Smooth LPF alpha parameters (0.15 = ~10-15Hz cutoff frequency)
+    servoController.setFilterAlphas(0.2f, 0.1f, 0.2f);
+    // Slew rate limiting (max 120 deg/s for mechanical stability)
+    servoController.setSlewRateLimits(120.0f, 120.0f, 150.0f);
+    // Physical IMU input range configuration
+    servoController.setRollRange(-30.0f, 0.0f);    // Gripper: -30 deg IMU = closed (0 deg), 0 deg IMU = open (90 deg)
+    servoController.setPitchRange(-90.0f, 90.0f);  // Elevation: ±90 deg IMU -> 0 to 180 deg Servo
+    servoController.setYawRange(-45.0f, 45.0f);     // Yaw: ±30 deg IMU -> 0 to 180 deg Servo
     
     Serial.println("\n--- Setup Complete ---");
     Serial.println("Send 'roll,pitch' for manual override. Press SPACE to toggle gripper open/closed.");
@@ -72,6 +85,9 @@ void setup() {
     lastSampleTime = micros();
 }
 
+/**
+ * @brief Arduino main execution loop processing serial input, IMU updates, servo control, and telemetry output.
+ */
 void loop() {
     // --- 1. Read from USB Serial Monitor ---
     if (Serial.available()) {
@@ -91,18 +107,15 @@ void loop() {
             if (commaIndex > 0) {
                 float targetRoll = rawInput.substring(0, commaIndex).toFloat();
                 float targetPitch = rawInput.substring(commaIndex + 1).toFloat();
-                
                 Serial.printf("Test Input -> Target Roll: %.2f | Target Pitch: %.2f\n", targetRoll, targetPitch);
-                for(int i=0; i<50; i++) {
-                    servoController.update(targetRoll, targetPitch, 0.0f);
-                    delay(20);
-                }
+                // Set override state directly without blocking delay loops
+                gripperOverride = true;
+                gripperOpen = (targetRoll > -15.0f);
             }
         }
     }
 
-
-    // --- 2. Poll hardware and update IMU & Servos ---
+    // --- 2. Poll hardware and update IMU ---
     if (imu.update()) {
         unsigned long currentMicros = micros();
         float dt = (currentMicros - lastSampleTime) / 1000000.0f;
@@ -123,35 +136,46 @@ void loop() {
         } else {
             avgUpdateMicros = (EMA_ALPHA * currentUpdateMicros) + ((1.0f - EMA_ALPHA) * avgUpdateMicros);
         }
+    }
+
+    // --- 3. Decoupled 50Hz Servo Execution Loop (Independent of IMU poll timing) ---
+    static unsigned long lastServoUpdate = 0;
+    if (millis() - lastServoUpdate >= 20) {
+        lastServoUpdate = millis();
 
         float roll = estimator.getRoll();
         float pitch = estimator.getPitch();
         float yaw = estimator.getYaw();
 
-        // Override gripper roll if spacebar toggle is active
         if (gripperOverride) {
-            roll = gripperOpen ? -6.0f : -25.0f;  // -6 = 90° servo (open), -25 = 0° servo (closed)
+            roll = gripperOpen ? 0.0f : -30.0f;
         }
 
-        // Update servos with IMU data (Max 50Hz / 20ms)
-        static unsigned long lastServoUpdate = 0;
-        if (millis() - lastServoUpdate >= 20) {
-            lastServoUpdate = millis();
-            servoController.update(roll, pitch, yaw);
-        }
+        servoController.update(roll, pitch, yaw);
+    }
 
-        // Print debug data every 50ms 
-        if (millis() - lastPrintTime >= 50) {
-            lastPrintTime = millis();
-            Serial.printf("Target [Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f] ---> Servos [Gripper: %3d | Elevation: %3d | Yaw: %3d]\n",
-                          roll, pitch, yaw,
-                          servoController.getGripperAngle(), servoController.getElevationAngle(), servoController.getYawAngle());
-        }
+    // --- 4. Print debug data every 50ms ---
+    if (millis() - lastPrintTime >= 50) {
+        // lastPrintTime = millis();
+        // Serial.printf("Target [Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f] ---> Servos [Gripper: %3d | Elevation: %3d | Yaw: %3d]\n",
+        //               estimator.getRoll(), estimator.getPitch(), estimator.getYaw(),
+        //               servoController.getGripperAngle(), servoController.getElevationAngle(), servoController.getYawAngle());
+        Serial.printf(
+                ">Roll:%f\n>Pitch:%f\n>Yaw:%f\n"
+                ">ax:%f\n>ay:%f\n>az:%f\n"
+                ">gx:%f\n>gy:%f\n>gz:%f\n"
+                ">mx:%f\n>my:%f\n>mz:%f\n",
+                estimator.getRoll(), estimator.getPitch(), estimator.getYaw(),
+                estimator.getTransformedAccX(), estimator.getTransformedAccY(), estimator.getTransformedAccZ(),
+                estimator.getTransformedGyroX(), estimator.getTransformedGyroY(), estimator.getTransformedGyroZ(),
+                estimator.getTransformedMagX(), estimator.getTransformedMagY(), estimator.getTransformedMagZ()
+            );
+        lastPrintTime = millis();
     }
 }
 
 /**
- * @brief Isolated Stress Test Function
+ * @brief Executes isolated computational speed stress test over 1,000 iterations.
  */
 void runFilterSpeedStressTest() {
     Serial.println("\n=====================================================");

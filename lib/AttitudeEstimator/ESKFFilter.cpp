@@ -4,10 +4,16 @@
 
 using namespace Eigen;
 
+/**
+ * @brief Constructs ESKFFilter object and calls reset.
+ */
 ESKFFilter::ESKFFilter() {
     reset();
 }
 
+/**
+ * @brief Resets filter nominal states and initial covariance matrix.
+ */
 void ESKFFilter::reset() {
     _q_nom = Quaternionf::Identity();
     _b_g = Vector3f::Zero();
@@ -21,10 +27,24 @@ void ESKFFilter::reset() {
     _is_first_sample = true;
 }
 
+/**
+ * @brief Gets current nominal quaternion components.
+ * @param w Output scalar w component reference.
+ * @param x Output vector x component reference.
+ * @param y Output vector y component reference.
+ * @param z Output vector z component reference.
+ */
 void ESKFFilter::getQuaternion(float& w, float& x, float& y, float& z) const {
     w = _q_nom.w(); x = _q_nom.x(); y = _q_nom.y(); z = _q_nom.z();
 }
 
+/**
+ * @brief Sets nominal quaternion state and normalizes.
+ * @param w Quaternion scalar w component.
+ * @param x Quaternion vector x component.
+ * @param y Quaternion vector y component.
+ * @param z Quaternion vector z component.
+ */
 void ESKFFilter::setQuaternion(float w, float x, float y, float z) {
     _q_nom.w() = w; _q_nom.x() = x; _q_nom.y() = y; _q_nom.z() = z;
     _q_nom.normalize();
@@ -210,18 +230,32 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
     }
 }
 
-// --- Retain Helper Methods Below unchanged ---
+/**
+ * @brief Builds skew-symmetric matrix part for measurement Jacobian.
+ * @param v Input 3D vector.
+ * @return 3x3 skew-symmetric matrix.
+ */
 Eigen::Matrix3f ESKFFilter::buildHPart(const Eigen::Vector3f& v) {
     Eigen::Matrix3f h = Eigen::Matrix3f::Zero();
     h(0, 1) = v(2); h(0, 2) = -v(1); h(1, 2) = v(0);
     return h - h.transpose();
 }
 
+/**
+ * @brief Projects rotation matrix to expected unit gravity direction vector.
+ * @param R Body-to-world rotation matrix.
+ * @return Projected gravity vector.
+ */
 Eigen::Vector3f ESKFFilter::rotMatToGravity(const Eigen::Matrix3f& R) {
     const float gravity = 1.0f;
     return gravity * R.row(2).transpose();
 }
 
+/**
+ * @brief Projects rotation matrix to expected unit magnetic field vector.
+ * @param R Body-to-world rotation matrix.
+ * @return Projected magnetic unit vector.
+ */
 Eigen::Vector3f ESKFFilter::rotMatToMagnetic(const Eigen::Matrix3f& R) {
     Eigen::Vector3f m = R.row(0).transpose();
     float norm = m.norm();
@@ -229,6 +263,12 @@ Eigen::Vector3f ESKFFilter::rotMatToMagnetic(const Eigen::Matrix3f& R) {
     return m / norm;
 }
 
+/**
+ * @brief Calculates initial orientation quaternion from accel and mag vectors.
+ * @param a Accelerometer measurement vector.
+ * @param m Magnetometer measurement vector.
+ * @return Initial attitude unit quaternion.
+ */
 Eigen::Quaternionf ESKFFilter::ecompass(const Eigen::Vector3f& a, const Eigen::Vector3f& m) {
     Eigen::Vector3f a_norm = a.normalized();
     Eigen::Vector3f cross_am = a_norm.cross(m);
@@ -240,6 +280,11 @@ Eigen::Quaternionf ESKFFilter::ecompass(const Eigen::Vector3f& a, const Eigen::V
     return Eigen::Quaternionf(R);
 }
 
+/**
+ * @brief Converts rotation vector to delta quaternion representation.
+ * @param r 3D rotation vector.
+ * @return Equivalent delta quaternion.
+ */
 Eigen::Quaternionf ESKFFilter::fromRotationVector(const Eigen::Vector3f& r) {
     float theta = r.norm();
     if (theta < 1e-6f) return Eigen::Quaternionf::Identity();
@@ -249,6 +294,12 @@ Eigen::Quaternionf ESKFFilter::fromRotationVector(const Eigen::Vector3f& r) {
     return Eigen::Quaternionf(cos_half, axis(0) * sin_half, axis(1) * sin_half, axis(2) * sin_half);
 }
 
+/**
+ * @brief Clamps vector magnitude to max_norm threshold.
+ * @param v Input 3D vector.
+ * @param max_norm Maximum magnitude threshold.
+ * @return Magnitude-limited 3D vector.
+ */
 Eigen::Vector3f ESKFFilter::limitVectorNorm(const Eigen::Vector3f& v, float max_norm) {
     float norm = v.norm();
     if (norm > max_norm) return v * (max_norm / norm);

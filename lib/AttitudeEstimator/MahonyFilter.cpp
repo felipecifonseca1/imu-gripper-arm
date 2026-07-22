@@ -1,5 +1,8 @@
 #include "AttitudeEstimator.h"
 
+/**
+ * @brief Constructs MahonyFilter object and initializes default gains.
+ */
 MahonyFilter::MahonyFilter() {
     _Kp = 30.0f;
     _Ki = 0.0f;
@@ -8,32 +11,72 @@ MahonyFilter::MahonyFilter() {
     reset();
 }
 
+/**
+ * @brief Resets orientation quaternion to identity and integral errors to zero.
+ */
 void MahonyFilter::reset() {
     _q[0] = 1.0f; _q[1] = 0.0f; _q[2] = 0.0f; _q[3] = 0.0f;
     _ix = 0.0f; _iy = 0.0f; _iz = 0.0f;
 }
 
+/**
+ * @brief Gets estimated unit quaternion components.
+ * @param w Output w scalar reference.
+ * @param x Output x vector reference.
+ * @param y Output y vector reference.
+ * @param z Output z vector reference.
+ */
 void MahonyFilter::getQuaternion(float& w, float& x, float& y, float& z) const {
     w = _q[0]; x = _q[1]; y = _q[2]; z = _q[3];
 }
 
+/**
+ * @brief Sets unit quaternion state and normalizes.
+ * @param w Quaternion scalar w component.
+ * @param x Quaternion vector x component.
+ * @param y Quaternion vector y component.
+ * @param z Quaternion vector z component.
+ */
 void MahonyFilter::setQuaternion(float w, float x, float y, float z) {
     _q[0] = w; _q[1] = x; _q[2] = y; _q[3] = z;
     float recipNorm = 1.0f / sqrt(_q[0] * _q[0] + _q[1] * _q[1] + _q[2] * _q[2] + _q[3] * _q[3]);
     _q[0] *= recipNorm; _q[1] *= recipNorm; _q[2] *= recipNorm; _q[3] *= recipNorm;
 }
 
+/**
+ * @brief Sets magnetometer weighting factor.
+ * @param weight Weight value between 0.0 and 1.0.
+ */
 void MahonyFilter::setMagnetometerWeight(float weight) {
     if (weight < 0.0f) weight = 0.0f;
     if (weight > 1.0f) weight = 1.0f;
     _magWeight = weight;
 }
 
+/**
+ * @brief Sets proportional (Kp) and integral (Ki) feedback gains.
+ * @param kp Proportional feedback gain.
+ * @param ki Integral feedback gain.
+ */
 void MahonyFilter::setGains(float kp, float ki) {
     _Kp = kp;
     _Ki = ki;
 }
 
+/**
+ * @brief Main Mahony orientation PI feedback algorithm update step.
+ * @param dt Integration time step in seconds.
+ * @param ax Accelerometer X in g.
+ * @param ay Accelerometer Y in g.
+ * @param az Accelerometer Z in g.
+ * @param gx Gyroscope X in rad/s.
+ * @param gy Gyroscope Y in rad/s.
+ * @param gz Gyroscope Z in rad/s.
+ * @param mx Magnetometer X in uT.
+ * @param my Magnetometer Y in uT.
+ * @param mz Magnetometer Z in uT.
+ * @param ignoreAccel Flag to suppress accelerometer feedback.
+ */
 void MahonyFilter::update(float dt, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz, bool ignoreAccel) {
     if (ignoreAccel) { ax = 0; ay = 0; az = 0; }
     float recipNorm;
