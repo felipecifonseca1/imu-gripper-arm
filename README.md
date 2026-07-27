@@ -1,6 +1,6 @@
 # IMU-Controlled Gripper Arm
 
-An ESP32-based robotic gripper arm that uses a **BNO085 9-DOF IMU** for real-time attitude estimation and maps the resulting orientation angles (roll, pitch, yaw) to three servo motors (gripper, elevation, yaw turntable).
+An ESP32-based robotic gripper arm that uses a **BNO085 9-DOF IMU** for real-time attitude estimation and maps the resulting orientation angles (roll, pitch, yaw) to three servo motors (gripper, elevation, yaw ).
 
 Built with [PlatformIO](https://platformio.org/) and the Arduino framework.
 
@@ -22,12 +22,12 @@ imu-gripper-arm/
 │   │   ├── BNO085_HAL.h/.cpp     # Concrete BNO085 driver (I²C, SH-2 reports)
 │   │
 │   ├── AttitudeEstimator/    # Sensor fusion / orientation estimation
-│   │   ├── AttitudeEstimator.h/.cpp  # Strategy manager (filter selection, calibration pipeline)
-│   │   ├── MadgwickFilter.h/.cpp     # Madgwick gradient-descent AHRS
-│   │   ├── MahonyFilter.h/.cpp       # Mahony complementary AHRS
-│   │   ├── ESKFFilter.h/.cpp         # Error-State Kalman Filter
-│   │   ├── MEKF.h/.cpp              # Multiplicative Extended Kalman Filter
-│   │   └── NoneFilter.h/.cpp        # Pass-through (raw quaternion from accel+mag)
+│   │   ├── AttitudeEstimator.h/.cpp  # Strategy manager
+│   │   ├── MadgwickFilter.h/.cpp     # Madgwick gradient-descent AHRS (not used in the project)
+│   │   ├── MahonyFilter.h/.cpp       # Mahony complementary AHRS (not used in the project)
+│   │   ├── ESKFFilter.h/.cpp         # Error-State Kalman Filter (used in the project)
+│   │   ├── MEKF.h/.cpp              # Multiplicative Extended Kalman Filter (not used in the project)
+│   │   └── NoneFilter.h/.cpp        # Pass-through (raw quaternion from accel+mag) (not used in the project)
 │   │
 │   ├── SensorCalibration/    # Offline calibration routines
 │   │   ├── SensorCalibration.h/.cpp  # Ellipsoid fit, static offset, noise variance,
@@ -42,7 +42,7 @@ imu-gripper-arm/
 │   └── analyze_allan_variance.py # Allan deviation analysis & plotting
 │
 ├── platformio.ini        # Build environment & dependencies
-├── teleplot_full.json    # Teleplot layout for real-time serial plotting
+├── teleplot_full.json    # Teleplot layout for real-time serial plotting visualization 
 ├── .gitignore
 └── README.md            
 ```
@@ -87,6 +87,11 @@ pio device monitor          # 115200 baud
 | **AttitudeEstimator** | Strategy-pattern filter manager with 5 interchangeable filters (Madgwick, Mahony, ESKF, MEKF, None) |
 | **SensorCalibration** | Ellipsoid-fit (accel/mag), static zero-rate offset (gyro), noise variance estimation, Allan variance data collection, tumble calibration |
 | **ServoController** | Maps IMU angles to servo PWM with configurable LPF, deadband, slew-rate limiting, and input range mapping |
+
+> [!NOTE]
+> **Component Origin & Attribution:**
+> - **`IMUSensor`**: Base sensor abstraction interface was imported from a previous project. The BNO085 driver was adapted from the Adafruit BNO08x library and developed for this project.
+> - **`AttitudeEstimator`**: Estimator framework and baseline orientation filters (`MadgwickFilter`, `MahonyFilter`, `MEKF`, `NoneFilter`) were imported from a previous project. The **`ESKFFilter`** (Error-State Kalman Filter) was developed specifically for this project.
 
 ---
 

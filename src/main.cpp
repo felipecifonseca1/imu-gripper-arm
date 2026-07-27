@@ -70,14 +70,14 @@ void setup() {
     servoController.init(GRIPPER_PIN, ELEVATION_PIN, YAW_PIN);
     // Continuous noise threshold 
     servoController.setDeadbands(2.0f, 1.0f, 1.5f);
-    // Smooth LPF alpha parameters (0.15 = ~10-15Hz cutoff frequency)
+    // Smooth LPF alpha parameters 
     servoController.setFilterAlphas(0.2f, 0.1f, 0.2f);
     // Slew rate limiting (max 120 deg/s for mechanical stability)
     servoController.setSlewRateLimits(120.0f, 120.0f, 150.0f);
     // Physical IMU input range configuration
     servoController.setRollRange(-30.0f, 0.0f);    // Gripper: -30 deg IMU = closed (0 deg), 0 deg IMU = open (90 deg)
     servoController.setPitchRange(-90.0f, 90.0f);  // Elevation: ±90 deg IMU -> 0 to 180 deg Servo
-    servoController.setYawRange(-45.0f, 45.0f);     // Yaw: ±30 deg IMU -> 0 to 180 deg Servo
+    servoController.setYawRange(-45.0f, 45.0f);     // Yaw: ±45 deg IMU -> 0 to 180 deg Servo
     
     Serial.println("\n--- Setup Complete ---");
     Serial.println("Send 'roll,pitch' for manual override. Press SPACE to toggle gripper open/closed.");
@@ -92,12 +92,10 @@ void loop() {
     // --- 1. Read from USB Serial Monitor ---
     if (Serial.available()) {
         String rawInput = Serial.readStringUntil('\n');
-        bool isSpacePress = (rawInput.indexOf(' ') >= 0);
         rawInput.trim();
 
-        }
         // "roll,pitch": Manual servo override
-        else if (rawInput.length() > 0) {
+        if (rawInput.length() > 0) {
             int commaIndex = rawInput.indexOf(',');
             if (commaIndex > 0) {
                 float targetRoll = rawInput.substring(0, commaIndex).toFloat();
@@ -151,21 +149,22 @@ void loop() {
 
     // --- 4. Print debug data every 50ms ---
     if (millis() - lastPrintTime >= 50) {
-        // lastPrintTime = millis();
-        // Serial.printf("Target [Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f] ---> Servos [Gripper: %3d | Elevation: %3d | Yaw: %3d]\n",
-        //               estimator.getRoll(), estimator.getPitch(), estimator.getYaw(),
-        //               servoController.getGripperAngle(), servoController.getElevationAngle(), servoController.getYawAngle());
-        Serial.printf(
-                ">Roll:%f\n>Pitch:%f\n>Yaw:%f\n"
-                ">ax:%f\n>ay:%f\n>az:%f\n"
-                ">gx:%f\n>gy:%f\n>gz:%f\n"
-                ">mx:%f\n>my:%f\n>mz:%f\n",
-                estimator.getRoll(), estimator.getPitch(), estimator.getYaw(),
-                estimator.getTransformedAccX(), estimator.getTransformedAccY(), estimator.getTransformedAccZ(),
-                estimator.getTransformedGyroX(), estimator.getTransformedGyroY(), estimator.getTransformedGyroZ(),
-                estimator.getTransformedMagX(), estimator.getTransformedMagY(), estimator.getTransformedMagZ()
-            );
         lastPrintTime = millis();
+        // Standard format for Serial Monitor
+        Serial.printf("Target [Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f] ---> Servos [Gripper: %3d | Elevation: %3d | Yaw: %3d]\n",
+                      estimator.getRoll(), estimator.getPitch(), estimator.getYaw(),
+                      servoController.getGripperAngle(), servoController.getElevationAngle(), servoController.getYawAngle());
+        // Teleplot format for plotting
+        // Serial.printf(
+        //         ">Roll:%f\n>Pitch:%f\n>Yaw:%f\n"
+        //         ">ax:%f\n>ay:%f\n>az:%f\n"
+        //         ">gx:%f\n>gy:%f\n>gz:%f\n"
+        //         ">mx:%f\n>my:%f\n>mz:%f\n",
+        //         estimator.getRoll(), estimator.getPitch(), estimator.getYaw(),
+        //         estimator.getTransformedAccX(), estimator.getTransformedAccY(), estimator.getTransformedAccZ(),
+        //         estimator.getTransformedGyroX(), estimator.getTransformedGyroY(), estimator.getTransformedGyroZ(),
+        //         estimator.getTransformedMagX(), estimator.getTransformedMagY(), estimator.getTransformedMagZ()
+        //     );
     }
 }
 

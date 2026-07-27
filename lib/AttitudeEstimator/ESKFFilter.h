@@ -12,7 +12,7 @@ public:
     ESKFFilter();
 
     /**
-     * @brief High-frequency state prediction phase using gyroscope integration.
+     * @brief State prediction phase using gyroscope integration.
      * @param gyro Gyroscope measurement vector in rad/s.
      * @param dt Integration time step in seconds.
      */

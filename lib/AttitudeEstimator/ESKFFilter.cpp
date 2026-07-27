@@ -60,16 +60,16 @@ void ESKFFilter::predict(const Vector3f& gyro, float dt) {
     const float LinearAccelerationNoise = 1.0e-5f; 
     const float LinearAccelerationDecayFactor = 0.5f;
 
-    // 1. Predict nominal orientation via Gyro kinematic integration
+    // Predict nominal orientation via Gyro kinematic integration
     Vector3f delta_theta = (gyro - _b_g) * dt;
     Quaternionf delta_q = fromRotationVector(delta_theta);
     _q_nom = _q_nom * delta_q;
     _q_nom.normalize();
 
-    // 2. Predict linear acceleration decay profile
+    // Predict linear acceleration decay profile
     _a_lin = LinearAccelerationDecayFactor * _a_lin;
 
-    // 3. Analytical Error Covariance Propagation
+    // Analytical Error Covariance Propagation
     Matrix<float, 9, 9> P_old = _P_cov;
     _P_cov.setZero();
     
@@ -104,10 +104,10 @@ void ESKFFilter::updateAccelerometer(const Vector3f& a_m, float dt) {
     Matrix3f R_q = _q_nom.toRotationMatrix();
     Vector3f z_a_hat = rotMatToGravity(R_q);
 
-    // Residual (Innovation)
+    // Residual
     Vector3f r_a = (a_m + _a_lin) - z_a_hat;
 
-    // Build specialized 3x9 Accelerometer Jacobian Matrix
+    // Build 3x9 Accelerometer Jacobian Matrix
     Matrix<float, 3, 9> H_a = Matrix<float, 3, 9>::Zero();
     H_a.block<3, 3>(0, 0) = -buildHPart(z_a_hat);
     H_a.block<3, 3>(0, 3) = dt * buildHPart(z_a_hat);
@@ -153,10 +153,10 @@ void ESKFFilter::updateMagnetometer(const Vector3f& m_m, float dt) {
     Vector3f m_ref_world(sqrt(m_world(0)*m_world(0) + m_world(1)*m_world(1)), 0.0f, m_world(2));
     Vector3f m_s_hat = R_q.transpose() * m_ref_world;
 
-    // Residual (Innovation)
+    // Residual
     Vector3f r_m = m_m_norm - m_s_hat;
 
-    // Build specialized 3x9 Magnetometer Jacobian Matrix
+    // Build 3x9 Magnetometer Jacobian Matrix
     Matrix<float, 3, 9> H_m = Matrix<float, 3, 9>::Zero();
     H_m.block<3, 3>(0, 0) = -buildHPart(m_s_hat);
     H_m.block<3, 3>(0, 3) = dt * buildHPart(m_s_hat);
@@ -195,20 +195,20 @@ void ESKFFilter::update(float dt, float ax, float ay, float az, float gx, float 
         _is_first_sample = false;
     }
 
-    // 1. High-frequency prediction
+    // 1. Prediction
     predict(omega_m, dt);
 
-    // 2. Sequential Accel Update
+    // 2. Accel Update
     if (!ignoreAccel) {
         updateAccelerometer(a_m, dt);
     }
 
-    // 3. Sequential Magnetometer Update
+    // 3. Magnetometer Update
     if (m_m.squaredNorm() > 1e-6f) {
         updateMagnetometer(m_m, dt);
     }
 
-    // 4. Complementary blending pass (only if both updates were valid/present)
+    // 4. Complementary blending pass
     if (!ignoreAccel && m_m.squaredNorm() > 1e-6f) {
         const float OrientationCorrectionGain = 0.1f;
         const float MaxOrientationCorrection = 0.03f;
