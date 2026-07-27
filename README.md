@@ -41,10 +41,10 @@ imu-gripper-arm/
 │   ├── collect_serial.py         # Collects raw gyro data over serial → CSV
 │   └── analyze_allan_variance.py # Allan deviation analysis & plotting
 │
-├── platformio.ini        # Build environments & dependencies
+├── platformio.ini        # Build environment & dependencies
 ├── teleplot_full.json    # Teleplot layout for real-time serial plotting
 ├── .gitignore
-└── README.md             # ← You are here
+└── README.md            
 ```
 
 ---
