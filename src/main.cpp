@@ -95,11 +95,6 @@ void loop() {
         bool isSpacePress = (rawInput.indexOf(' ') >= 0);
         rawInput.trim();
 
-        // SPACE BAR: Toggle gripper open/closed
-        if (isSpacePress && rawInput.length() == 0) {
-            gripperOverride = true;
-            gripperOpen = !gripperOpen;
-            Serial.printf(">> Gripper: %s\n", gripperOpen ? "OPEN (90 deg)" : "CLOSED (0 deg)");
         }
         // "roll,pitch": Manual servo override
         else if (rawInput.length() > 0) {
